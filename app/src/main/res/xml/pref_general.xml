@@ -1,0 +1,19 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <EditTextPreference
+        android:key="@string/pref_location_key"
+        android:title="@string/pref_location_title"
+        android:defaultValue="@string/pref_location_default"
+        android:selectAllOnFocus="true"
+        android:inputType="textCapWords"
+        android:capitalize="none"
+        android:singleLine="true"
+        android:maxLines="1" />
+    <ListPreference
+        android:key="@string/pref_units_key"
+        android:title="@string/pref_units_title"
+        android:entries="@array/pref_units_list_titles"
+        android:entryValues="@array/pref_units_list_values"
+        android:defaultValue="@string/pref_units_default"
+        android:summary="Used for data display"
+        />
+</PreferenceScreen>

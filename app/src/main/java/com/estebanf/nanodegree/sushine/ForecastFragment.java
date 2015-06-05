@@ -1,8 +1,11 @@
 package com.estebanf.nanodegree.sushine;
 
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.text.format.Time;
 import android.util.Log;
@@ -12,6 +15,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
@@ -27,7 +31,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * A placeholder fragment containing a simple view.
@@ -47,41 +50,55 @@ public class ForecastFragment extends Fragment {
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater){
         inflater.inflate(R.menu.forecastfragment, menu);
     }
+    private String getLocation(){
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        return prefs.getString(getString(R.string.pref_location_key),getString(R.string.pref_location_default));
+    }
+    private void updateWeather(){
+        FetchWeatherTask weatherTask =  new FetchWeatherTask();
+        weatherTask.execute(getLocation());
+    }
     @Override
     public boolean onOptionsItemSelected(MenuItem item){
         int id = item.getItemId();
         if(id == R.id.action_refresh){
-            FetchWeatherTask weatherTask =  new FetchWeatherTask();
-            weatherTask.execute("32259");
+            updateWeather();
             return true;
+        }
+        if(id == R.id.action_map){
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setData(Uri.parse("geo:0,0?q=" + getLocation()));
+            if (intent.resolveActivity(getActivity().getPackageManager()) != null) {
+                startActivity(intent);
+            }
         }
         return super.onOptionsItemSelected(item);
     }
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-//        new FetchWeatherTask().doInBackground();
-
-        List<String> weekForecast = new ArrayList<String>();
-        weekForecast.add("Mon 6/23 - Sunny - 31/17");
-        weekForecast.add("Tue 6/24 - Cloudy - 31/17");
-        weekForecast.add("Wed 6/25 - Rainy - 31/17");
-        weekForecast.add("Thu 6/26 - Foggy - 31/17");
-        weekForecast.add("Fri 6/27 - Sunny - 31/17");
-        weekForecast.add("Sat 6/28 - Cloudy - 31/17");
-        weekForecast.add("Sun 6/29 - Foggy - 31/17");
-        weekForecast.add("Mon 6/30 - Cloudy - 31/17");
-        weekForecast.add("Tue 6/31 - Sunny - 31/17");
-        weekForecast.add("Wed 7/1 - Foggy - 31/17");
-
-
-        adapter = new ArrayAdapter<String>(getActivity(),R.layout.list_item_forecast,R.id.list_item_forecast_textview,weekForecast);
-
+        adapter = new ArrayAdapter<String>(getActivity(),R.layout.list_item_forecast,R.id.list_item_forecast_textview,new ArrayList<String>());
         View rootView =  inflater.inflate(R.layout.fragment_main, container, false);
-        ListView lview = (ListView)rootView.findViewById(R.id.listview_forecast);
-        lview.setAdapter(adapter);
+        ListView lView = (ListView)rootView.findViewById(R.id.listview_forecast);
+        lView.setAdapter(adapter);
+        lView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String item = adapter.getItem(position);
+                Intent detailIntent = new Intent(getActivity(), DetailActivity.class)
+                        .putExtra(Intent.EXTRA_TEXT,item);
+                getActivity().startActivity(detailIntent);
+            }
+        });
         return rootView;
     }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        updateWeather();
+    }
+
     private class FetchWeatherTask extends AsyncTask<String,Void,String[]>{
         private final String LogTag = FetchWeatherTask.class.getSimpleName();
         /* The date/time conversion code is going to be moved outside the asynctask later,
@@ -145,6 +162,9 @@ public class ForecastFragment extends Fragment {
             dayTime = new Time();
 
             String[] resultStrs = new String[numDays];
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+            String unit = prefs.getString(getString(R.string.pref_units_key),"0");
+
             for(int i = 0; i < weatherArray.length(); i++) {
                 // For now, using the format "Day, description, hi/low"
                 String day;
@@ -171,7 +191,10 @@ public class ForecastFragment extends Fragment {
                 JSONObject temperatureObject = dayForecast.getJSONObject(OWM_TEMPERATURE);
                 double high = temperatureObject.getDouble(OWM_MAX);
                 double low = temperatureObject.getDouble(OWM_MIN);
-
+                if(unit.equals("1")){
+                    high = (high * (9/5)) + 32;
+                    low = (low * (9/5)) + 32;
+                }
                 highAndLow = formatHighLows(high, low);
                 resultStrs[i] = day + " - " + description + " - " + highAndLow;
             }
